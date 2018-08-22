@@ -172,6 +172,56 @@ public class BasicAnnotationProcessorTest {
     assertThat(requiresGeneratedCodeProcessor.rejectedRounds).isEqualTo(0);
   }
 
+  @Test public void properlyDefersProcessing_superclassParent() {
+    JavaFileObject classAFileObject = JavaFileObjects.forSourceLines("test.ClassA",
+            "package test;",
+            "",
+            "@" + RequiresGeneratedCode.class.getCanonicalName(),
+            "public class ClassA extends SomeGeneratedClass {}");
+    JavaFileObject classBFileObject = JavaFileObjects.forSourceLines("test.ClassB",
+            "package test;",
+            "",
+            "@" + GeneratesCode.class.getCanonicalName(),
+            "public class ClassB {}");
+    RequiresGeneratedCodeProcessor requiresGeneratedCodeProcessor =
+            new RequiresGeneratedCodeProcessor();
+    assertAbout(javaSources())
+            .that(ImmutableList.of(classAFileObject, classBFileObject))
+            .processedWith(requiresGeneratedCodeProcessor, new GeneratesCodeProcessor())
+            .compilesWithoutError()
+            .and()
+            .generatesFileNamed(
+                    SOURCE_OUTPUT, "test", "GeneratedByRequiresGeneratedCodeProcessor.java");
+    assertThat(requiresGeneratedCodeProcessor.rejectedRounds).isEqualTo(0);
+  }
+
+  @Test public void properlyDefersProcessing_superclassGrandparent() {
+    JavaFileObject classASuperclassFileObject = JavaFileObjects.forSourceLines("test.ClassAParent",
+            "package test;",
+            "",
+            "public class ClassAParent extends SomeGeneratedClass {}");
+    JavaFileObject classAFileObject = JavaFileObjects.forSourceLines("test.ClassA",
+            "package test;",
+            "",
+            "@" + RequiresGeneratedCode.class.getCanonicalName(),
+            "public class ClassA extends ClassAParent {}");
+    JavaFileObject classBFileObject = JavaFileObjects.forSourceLines("test.ClassB",
+            "package test;",
+            "",
+            "@" + GeneratesCode.class.getCanonicalName(),
+            "public class ClassB {}");
+    RequiresGeneratedCodeProcessor requiresGeneratedCodeProcessor =
+            new RequiresGeneratedCodeProcessor();
+    assertAbout(javaSources())
+            .that(ImmutableList.of(classASuperclassFileObject, classAFileObject, classBFileObject))
+            .processedWith(requiresGeneratedCodeProcessor, new GeneratesCodeProcessor())
+            .compilesWithoutError()
+            .and()
+            .generatesFileNamed(
+                    SOURCE_OUTPUT, "test", "GeneratedByRequiresGeneratedCodeProcessor.java");
+    assertThat(requiresGeneratedCodeProcessor.rejectedRounds).isEqualTo(0);
+  }
+
   @Test
   public void properlyDefersProcessing_nestedTypeValidBeforeOuterType() {
     JavaFileObject source =
